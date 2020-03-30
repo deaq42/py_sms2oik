@@ -29,7 +29,8 @@ def readsms(cell_n):
     sms_str2_list = sms[0].split('"')
     sms_phone_number = sms_str2_list[3]
     sms_text = sms_str2_list[6].strip()
-    sms_time = sms_str2_list[4]
+    sms_text.split('OK')
+    sms_time = sms_str2_list[5]
     time.sleep(0.5)
     ser.write(bytes ('AT+CMGDA="DEL INBOX" \r\n', 'utf8')) #Удалить смс все
     #print ('full_resp ')

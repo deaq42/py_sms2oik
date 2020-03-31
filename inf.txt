@@ -2,3 +2,16 @@
 AT+CMGR=2\r
 
 AT+CMGDA="DEL ALL" - удаление смс
+
+
+
+{ "query": "set-ts",  "ts": "0:10:100",  "value": 1,  "hash": "d6f66188167a7b97939400817bea6dad8e45c26893ae16d564bc329c7bd32582",  
+
+
+
+"timestamp": 1360918299956 } 
+             1585568835000
+
+
+
+            .\OikHttpGate.exe /server=192.168.88.11 /pipe=TMS /httpport=80 /commandkey=1234 /demo=1

@@ -8,11 +8,11 @@ import urllib
 import sys
 import argparse
 
-SERVER_ADRESS = 'http://localhost/' #+++Сделать считывание этого парамтера из командной строки++++
+SERVER_ADRESS = '' #+++Сделать считывание этого парамтера из командной строки++++
 PHONE_NUM = {}   #Словарь в котором будут хранится данные об известных номерах и соответсвующий ТС. {'phone_number':'К:КП:Объект'}
-COM_PORT = 'COM5'
-COM_SPEED = '115200'
-commandkey='1234' #ключ для соления хеша, задается в параметрах запуска оик_хттп_гейт
+COM_PORT = ''
+COM_SPEED = ''
+commandkey='' #ключ для соления хеша, задается в параметрах запуска оик_хттп_гейт
 
 def createParser ():
     parser = argparse.ArgumentParser()
@@ -57,7 +57,7 @@ def load_settings():
     #Инициализация порта
 load_settings()
 try:
-    ser = serial.Serial(COM_PORT, 115200, dsrdtr = 1,timeout = 0) #открываем порт
+    ser = serial.Serial(COM_PORT, COM_SPEED, dsrdtr = 1,timeout = 0) #открываем порт
 except:
     print (f'Невозоможно открыть {COM_PORT}')
     raise SystemExit
@@ -141,7 +141,7 @@ def readsms(cell_n):
     print ('\n')
     #Добавить условие наличия sms_phone_number в словаре PHONE_NUM
     oik_switch_ts(PHONE_NUM[sms_phone_number])
-    str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]}{sms_time};{sms_text[0]} \n'#Довести до ума строку. удалить лишние символы в конце
+    str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Довести до ума строку. удалить лишние символы в конце
     f_log = open('py_gsm_log.log', 'a')
     f_log.writelines(str_2_log)
     f_log.close

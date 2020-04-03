@@ -8,7 +8,7 @@ import urllib
 import sys
 import argparse
 
-SERVER_ADRESS = '' #+++Сделать считывание этого парамтера из командной строки++++
+SERVER_ADRESS = '' #+++
 PHONE_NUM = {}   #Словарь в котором будут хранится данные об известных номерах и соответсвующий ТС. {'phone_number':'К:КП:Объект'}
 COM_PORT = ''
 COM_SPEED = ''
@@ -16,7 +16,7 @@ commandkey='' #ключ для соления хеша, задается в па
 
 def createParser ():
     parser = argparse.ArgumentParser()
-    parser.add_argument ('-s', '--server', default='127.0.0.1')
+    parser.add_argument('-s', '--server', default='127.0.0.1')
     parser.add_argument('-p', '--port', default = 'none')
     parser.add_argument('-cc', '--comandkey', default = 'none') 
     parser.add_argument('-cs', '--comspeed', default = '115200')
@@ -47,7 +47,7 @@ def load_settings():
     #first = tp_numbers[0].split(';')
     f.close()
     print (f'Количество записей в бд : {len(tp_numbers)}')
-    for number in tp_numbers:
+    for number in tp_numbers: #ТУТ ВЫЛЕТАЕТ ОШИБКА ЕСЛИ В БАЗЕ ТОЛЬКО ОДИН НОМЕР
         number = number.split(';')
         PHONE_NUM[number[0]] = number[1] #Сделать нормальный разбор по разделителям а не по количеству символов
         print (number[0:12])
@@ -128,20 +128,27 @@ def readsms(cell_n):
     sms_str2_list = sms[0].split('"')
     sms_phone_number = sms_str2_list[3]
     sms_text = sms_str2_list[6].strip()
-    
     sms_text = sms_text.split('\r')
     sms_time = sms_str2_list[5]
     time.sleep(0.5)
     ser.write(bytes ('AT+CMGDA="DEL INBOX" \r\n', 'utf8')) #Удалить смс все
     #print ('full_resp ')
     print ('---\n Входящее сообщение!\n')
-    print (f'Номер телефона: {sms_phone_number}, этот номер должен изменить ТС {PHONE_NUM[sms_phone_number]}')
-    print (f'Время: {sms_time}')
-    print (f'Текст сообщения: {sms_text[0]}')
-    print ('\n')
+    if sms_phone_number in PHONE_NUM:
+        print (f'Номер телефона: {sms_phone_number}, этот номер должен изменить ТС {PHONE_NUM[sms_phone_number]}')
+        print (f'Время: {sms_time}')
+        print (f'Текст сообщения: {sms_text[0]}')
+        print ('\n')
     #Добавить условие наличия sms_phone_number в словаре PHONE_NUM
-    oik_switch_ts(PHONE_NUM[sms_phone_number])
-    str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Довести до ума строку. удалить лишние символы в конце
+        oik_switch_ts(PHONE_NUM[sms_phone_number])
+        str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога
+    else:
+        print ('Номер не числится в базе!')
+        print (f'Номер телефона: {sms_phone_number}, Отсутствует в базе! ОШИБКА!')
+        print (f'Время: {sms_time}')
+        print (f'Текст сообщения: {sms_text[0]}')
+        print ('\n')
+    str_2_log = f'{sms_phone_number};*UNKNOW NUBER*;{sms_time};{sms_text[0]} \n'#Генерируем строку с отсутвующим номером
     f_log = open('py_gsm_log.log', 'a')
     f_log.writelines(str_2_log)
     f_log.close

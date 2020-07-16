@@ -1,8 +1,7 @@
-str = ['AT+CMGR=1\r\r\n+CMGR: "REC UNREAD","+79090025706",,"20/03/30,13:01:55+16"\r\nLkkl\r\n \r\r\nOK\r\n']
+str1 = ''
 
-str2 = str[0].split('"')
+str2 = str1.encode()
+str3 = str2.decode('utf8')
 
-print (str2[5]) 
-
-
-str4 = str
+print (f'{str2}') 
+print (chr(int(str3)))

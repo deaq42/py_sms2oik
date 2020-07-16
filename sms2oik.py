@@ -16,9 +16,9 @@ commandkey='' #ключ для соления хеша, задается в па
 
 def createParser ():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--server', default='127.0.0.1')
-    parser.add_argument('-p', '--port', default = 'none')
-    parser.add_argument('-cc', '--comandkey', default = 'none') 
+    parser.add_argument('-s', '--server', default='172.18.49.4:952')
+    parser.add_argument('-p', '--port', default = 'COM4')
+    parser.add_argument('-cc', '--comandkey', default = '1234') 
     parser.add_argument('-cs', '--comspeed', default = '115200')
 
     return parser
@@ -56,6 +56,10 @@ def load_settings():
 
     #Инициализация порта
 load_settings()
+
+def del_inb_mess():
+    ser.write(bytes ('AT+CMGDA="DEL INBOX" \r\n', 'utf8')) #Удалить смс все
+
 try:
     ser = serial.Serial(COM_PORT, COM_SPEED, dsrdtr = 1,timeout = 0) #открываем порт
 except:
@@ -64,6 +68,9 @@ except:
 ser.write(bytes ('AT+CMGF=1 \r\n','utf8')) # #переводим режим ответетов в текст
 time.sleep(0.2)
 #ser.write(bytes ('\f','utf8')) #Очищаем экран, не уверен что нужно
+ser.write(bytes ('AT+CMGDA="DEL INBOX" \r\n', 'utf8'))
+time.sleep(0.2)
+print (ser.read(300).decode('utf8'))
 time.sleep(2)
     #конец инициализации
 
@@ -73,12 +80,12 @@ def oik_set_ts(ts_adress):
     timestamp = timestamp[0] + '000' #Готовим метку времени формата ОИК диспетчер
     str2 = f'!IP-gate@{commandkey}@{timestamp}!' #Готовим и солим хеш запроса
     sha_str = hashlib.sha256(str2.encode())
-    query2 = '?query={%22query%22:%20%22set-ts%22,%22ts%22:%20%22'+ts_adress+'%22,%20%20%22value%22:%201,%22hash%22:%20"'+sha_str.hexdigest()+'",%22timestamp%22:%20'+timestamp+'%20}' 
+    query2 = '?query={%22query%22:%20%22set-ts%22,%22ts%22:%20%22'+ts_adress+'%22,%20%20%22value%22:%200,%22hash%22:%20"'+sha_str.hexdigest()+'",%22timestamp%22:%20'+timestamp+'%20}' 
     print (urllib.parse.unquote(query2))
     #print (query.items())            
     full_url = SERVER_ADRESS + query2
     print (full_url)
-    #responce = requests.get(SERVER_ADRESS, params = query)
+    
     responce = requests.get(full_url)
     print (responce.text)
     print (responce.url)
@@ -90,9 +97,10 @@ def oik_switch_ts(ts_adress):
     timestamp = timestamp[0] + '000' #Готовим метку времени формата ОИК диспетчер
     str2 = f'!IP-gate@{commandkey}@{timestamp}!' #Готовим и солим хеш запроса
     sha_str = hashlib.sha256(str2.encode())
+    print (ts_adress)
     query2 = '?query={%22query%22:%20%22switch-ts%22,%22ts%22:%20%22'+ts_adress+'%22,%22hash%22:%20"'+sha_str.hexdigest()+'",%22timestamp%22:%20'+timestamp+'%20}'    
     full_url = SERVER_ADRESS + query2
-    #responce = requests.get(SERVER_ADRESS, params = query)
+    print (full_url)
     responce = requests.get(full_url)
     print (responce.text)
     print (responce.url)    
@@ -101,15 +109,21 @@ def oik_switch_ts(ts_adress):
 
 def check_sms():
     ser.reset_output_buffer
-    read_l = ser.read(600).decode('utf8').split(',')#Читаем данные из ком порта и разделяем их по запятой
+    ser.write(bytes (f'\r\n', 'utf8'))
+    time.sleep(0.01)
+    read_l = ser.read(800).decode('utf8').split(',')#Читаем данные из ком порта и разделяем их по запятой
     print (read_l[-1])
     #print (len(read_l[-1]))
     print ('------')
     #print (read_l[1])
-    if read_l[-1].strip() == '1':#Если новое непрочитаное сообщение запускаем функцию реадсмс, добавить исключение если смс больше 1. надо перевести в int для сравнения
-        print (read_l)    
-        readsms(read_l[-1]) #Вызываем функцию реадсмс с аргументом в котором передается номер ячейки памяти с новым сообщением
-    return read_l[-1]
+    
+    co = read_l[-1].strip()
+    if co.isdigit() == True:
+        str_int = int(co)
+        if str_int >= 1 :#Если новое непрочитаное сообщение запускаем функцию реадсмс, добавить исключение если смс больше 1. надо перевести в int для сравнения
+            print (read_l)    
+            readsms(read_l[-1]) #Вызываем функцию реадсмс с аргументом в котором передается номер ячейки памяти с новым сообщением
+        return read_l[-1]
 def check_at():
     ser.reset_output_buffer
     ser.write(bytes (f'AT\r\n', 'utf8'))
@@ -120,7 +134,9 @@ def check_at():
     print ('------')
     #print (read_l[1])
 
+
 def readsms(cell_n):
+    ser.reset_output_buffer
     command_read = bytes (f'AT+CMGR={cell_n} \r\n', 'utf8')   
     ser.write(command_read)
     time.sleep(0.5)
@@ -131,34 +147,85 @@ def readsms(cell_n):
     sms_text = sms_text.split('\r')
     sms_time = sms_str2_list[5]
     time.sleep(0.5)
-    ser.write(bytes ('AT+CMGDA="DEL INBOX" \r\n', 'utf8')) #Удалить смс все
+    ser.write(bytes (f'AT+CMGD={cell_n} \r\n', 'utf8')) #Удалить смс все
     #print ('full_resp ')
     print ('---\n Входящее сообщение!\n')
     if sms_phone_number in PHONE_NUM:
         print (f'Номер телефона: {sms_phone_number}, этот номер должен изменить ТС {PHONE_NUM[sms_phone_number]}')
         print (f'Время: {sms_time}')
-        print (f'Текст сообщения: {sms_text[0]}')
+        encoded_text = str(sms_text[0])
+        print (f'Текст сообщения: {encoded_text}')
         print ('\n')
+        ts_end = linetroll_decode(encoded_text)
+        if ts_end:
+            if ts_end == 'ok':
+                oik_set_ts(PHONE_NUM[sms_phone_number]+':1')
+                time.sleep(1)
+                oik_set_ts(PHONE_NUM[sms_phone_number]+':2')
+                time.sleep(1)
+                oik_set_ts(PHONE_NUM[sms_phone_number]+':3')
+                time.sleep(1)
+                oik_set_ts(PHONE_NUM[sms_phone_number]+':4')
+                time.sleep(1)
+                str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога ИЗМЕНИТЬ
+            else:                    
+                ts_all = PHONE_NUM[sms_phone_number] + ts_end
+                oik_switch_ts(ts_all)
+                str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога
+        else:
+            print ('error')
+            str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога
     #Добавить условие наличия sms_phone_number в словаре PHONE_NUM
-        oik_switch_ts(PHONE_NUM[sms_phone_number])
-        str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога
+
     else:
         print ('Номер не числится в базе!')
         print (f'Номер телефона: {sms_phone_number}, Отсутствует в базе! ОШИБКА!')
         print (f'Время: {sms_time}')
         print (f'Текст сообщения: {sms_text[0]}')
         print ('\n')
-    str_2_log = f'{sms_phone_number};*UNKNOW NUBER*;{sms_time};{sms_text[0]} \n'#Генерируем строку с отсутвующим номером
+        str_2_log = f'{sms_phone_number};*UNKNOW NUBER*;{sms_time};{sms_text[0]} \n'#Генерируем строку с отсутвующим номером
     f_log = open('py_gsm_log.log', 'a')
     f_log.writelines(str_2_log)
     f_log.close
     #print ('Номер = ' + sms[2])
     #rint ('сообщение:' + sms[6])
 
-    
-
+def linetroll_decode(ln_msg):
+    ln_msg = ln_msg.split()
+    print (ln_msg[0])
+    if ln_msg[0] == '3':
+        print ('Is Lintroll!') 
+        if ln_msg[1] == '18':
+            print ('Is alarm message')
+            if ln_msg[2] == '0':
+                print ('OK')
+                return 'ok'
+            elif ln_msg[2] == '1':
+                print ('Неустойчивое повреждение')
+                return ':1'
+            elif ln_msg[2] == '2':
+                print ('Устойчивое повреждение')
+                return ':2'
+            elif ln_msg[2] == '4':
+                print ('Потеря напряжения в сети')
+                return ':3'
+            elif ln_msg[2] == '6':
+                print ('Устойчивое повреждение  + потеря напряжения в сети')
+                return ':6'
+            elif ln_msg[2] == '8':
+                print ('Низкий заряд батареи')
+                return ':4'
+            elif ln_msg[2] == '9':
+                print ('Неустойчивое повреждение + Низкий заряд батареи')
+            elif ln_msg[2] == '10':
+                print ('Устойчивое повреждение + Низкий заряд батареи')
+            elif ln_msg[2] == '12':
+                print ('Потеря напряжения в сети + Низкий заряд батареи ')
+    else:
+        print ('Is not Linetroll!')    
 #readsms(1)
 a=0
+
 while True:
     
     a=a+1

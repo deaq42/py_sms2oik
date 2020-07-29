@@ -74,22 +74,35 @@ print (ser.read(300).decode('utf8'))
 time.sleep(2)
     #конец инициализации
 
-def oik_set_ts(ts_adress):       
+def oik_set_ts(ts_adress, val):       
     timestamp = str(time.time())
     timestamp = timestamp.split('.')
     timestamp = timestamp[0] + '000' #Готовим метку времени формата ОИК диспетчер
     str2 = f'!IP-gate@{commandkey}@{timestamp}!' #Готовим и солим хеш запроса
     sha_str = hashlib.sha256(str2.encode())
-    query2 = '?query={%22query%22:%20%22set-ts%22,%22ts%22:%20%22'+ts_adress+'%22,%20%20%22value%22:%200,%22hash%22:%20"'+sha_str.hexdigest()+'",%22timestamp%22:%20'+timestamp+'%20}' 
+    query2 = '?query={%22query%22:%20%22set-ts%22,%22ts%22:%20%22'+ts_adress+'%22,%20%20%22value%22:%20'+str(val)+',%22hash%22:%20"'+sha_str.hexdigest()+'",%22timestamp%22:%20'+timestamp+'%20}' 
     print (urllib.parse.unquote(query2))
     #print (query.items())            
     full_url = SERVER_ADRESS + query2
-    print (full_url)
-    
+    #print (full_url)    
     responce = requests.get(full_url)
     print (responce.text)
     print (responce.url)
 
+def oik_set_ti(ts_adress, val):       
+    timestamp = str(time.time())
+    timestamp = timestamp.split('.')
+    timestamp = timestamp[0] + '000' #Готовим метку времени формата ОИК диспетчер
+    str2 = f'!IP-gate@{commandkey}@{timestamp}!' #Готовим и солим хеш запроса
+    sha_str = hashlib.sha256(str2.encode())
+    query2 = '?query={%22query%22:%20%22set-ti%22,%22ti%22:%20%22'+ts_adress+'%22,%20%20%22value%22:%20'+str(val)+',%22hash%22:%20"'+sha_str.hexdigest()+'",%22timestamp%22:%20'+timestamp+'%20}' 
+    print (urllib.parse.unquote(query2))
+    #print (query.items())            
+    full_url = SERVER_ADRESS + query2
+    #print (full_url)    
+    responce = requests.get(full_url)
+    print (responce.text)
+    print (responce.url)
 
 def oik_switch_ts(ts_adress):
     timestamp = str(time.time())
@@ -157,21 +170,37 @@ def readsms(cell_n):
         print (f'Текст сообщения: {encoded_text}')
         print ('\n')
         ts_end = linetroll_decode(encoded_text)
+        print (len(ts_end))
         if ts_end:
-            if ts_end == 'ok':
-                oik_set_ts(PHONE_NUM[sms_phone_number]+':1')
+            if ts_end == 'ok': #если ответ лайнтролла ОК то сбрасываем все 4 тс в ноль
+                oik_set_ts(PHONE_NUM[sms_phone_number]+'1', 0)
                 time.sleep(1)
-                oik_set_ts(PHONE_NUM[sms_phone_number]+':2')
+                oik_set_ts(PHONE_NUM[sms_phone_number]+'2', 0)
                 time.sleep(1)
-                oik_set_ts(PHONE_NUM[sms_phone_number]+':3')
+                oik_set_ts(PHONE_NUM[sms_phone_number]+'3', 0)
                 time.sleep(1)
-                oik_set_ts(PHONE_NUM[sms_phone_number]+':4')
+                oik_set_ts(PHONE_NUM[sms_phone_number]+'4', 0)
                 time.sleep(1)
-                str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога ИЗМЕНИТЬ
-            else:                    
-                ts_all = PHONE_NUM[sms_phone_number] + ts_end
-                oik_switch_ts(ts_all)
+                str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} Лайнтролл ОК \n'#Генерируем строку для записи в файл лога ИЗМЕНИТЬ
+            
+            elif len(ts_end) == 2:    
+                for t in ts_end:
+                    ts_all = PHONE_NUM[sms_phone_number] + t
+                    oik_set_ts(ts_all, 1)
+                    time.sleep(1)
+                    str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога
+            elif len(ts_end) > 2:
+                ts_all = PHONE_NUM[sms_phone_number] + '1'
+                oik_set_ti(ts_all, ts_end)
                 str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога
+            else:
+                ts_all = PHONE_NUM[sms_phone_number] + ts_end
+                oik_set_ts(ts_all, 1)    
+                str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога
+                #elif ts_end == 'load':
+                #    oik_set_ti(PHONE_NUM[sms_phone_number]+':1', ts_end[1])
+            #else:                    
+                
         else:
             print ('error')
             str_2_log = f'{sms_phone_number};{PHONE_NUM[sms_phone_number]};{sms_time};{sms_text[0]} \n'#Генерируем строку для записи в файл лога
@@ -200,27 +229,35 @@ def linetroll_decode(ln_msg):
             if ln_msg[2] == '0':
                 print ('OK')
                 return 'ok'
+                
             elif ln_msg[2] == '1':
                 print ('Неустойчивое повреждение')
-                return ':1'
+                return '1'
             elif ln_msg[2] == '2':
                 print ('Устойчивое повреждение')
-                return ':2'
+                return '2'
             elif ln_msg[2] == '4':
                 print ('Потеря напряжения в сети')
-                return ':3'
+                return '3'
             elif ln_msg[2] == '6':
                 print ('Устойчивое повреждение  + потеря напряжения в сети')
-                return ':6'
+                return ['2','3']
             elif ln_msg[2] == '8':
                 print ('Низкий заряд батареи')
-                return ':4'
+                return '4'
             elif ln_msg[2] == '9':
                 print ('Неустойчивое повреждение + Низкий заряд батареи')
+                return ['1','4']
             elif ln_msg[2] == '10':
                 print ('Устойчивое повреждение + Низкий заряд батареи')
+                return ['2','4']
             elif ln_msg[2] == '12':
                 print ('Потеря напряжения в сети + Низкий заряд батареи ')
+                return ['3','4']
+        elif ln_msg[1] == '3':
+            print (f'Лайнтролл включен, уровень сети {ln_msg[2]}')
+            return (ln_msg[2])
+        #elif ln_msg[1] == '19':
     else:
         print ('Is not Linetroll!')    
 #readsms(1)
